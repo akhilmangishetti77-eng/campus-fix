@@ -1,0 +1,151 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div style="margin-bottom: 2rem;">
+  <h1 style="font-size: 2rem; font-weight: 800;">REPORTS & ANALYSIS</h1>
+  <p style="color: var(--text-muted); font-size: 0.85rem;">Everything Pandas would have crunched — rendered live.</p>
+</div>
+
+<!-- Key Performance Metrics -->
+<div class="metrics-grid">
+  <div class="metric-card">
+    <div class="metric-title">Total Complaints</div>
+    <div class="metric-value" id="m-total">0</div>
+  </div>
+  <div class="metric-card">
+    <div class="metric-title">Pending</div>
+    <div class="metric-value" style="color: var(--accent-orange);" id="m-pending">0</div>
+  </div>
+  <div class="metric-card">
+    <div class="metric-title">In Progress</div>
+    <div class="metric-value" style="color: var(--accent-cyan);" id="m-progress">0</div>
+  </div>
+  <div class="metric-card">
+    <div class="metric-title">Resolved</div>
+    <div class="metric-value" style="color: var(--accent-green);" id="m-resolved">0</div>
+  </div>
+  <div class="metric-card">
+    <div class="metric-title">Total Maintenance Cost</div>
+    <div class="metric-value" id="m-cost">₹0</div>
+  </div>
+  <div class="metric-card">
+    <div class="metric-title">Average Repair Cost</div>
+    <div class="metric-value" id="m-avg-cost">₹0</div>
+  </div>
+  <div class="metric-card">
+    <div class="metric-title">Most Common Category</div>
+    <div class="metric-value" style="font-size: 1.2rem;" id="m-cat">-</div>
+  </div>
+  <div class="metric-card">
+    <div class="metric-title">Most Reported Building</div>
+    <div class="metric-value" style="font-size: 1.2rem;" id="m-bldg">-</div>
+  </div>
+</div>
+
+<!-- Visualizations Grid -->
+<div class="charts-grid">
+  <div class="chart-card">
+    <div class="chart-title">Complaints By Category</div>
+    <canvas id="chartCategory"></canvas>
+  </div>
+
+  <div class="chart-card">
+    <div class="chart-title">Status Distribution</div>
+    <canvas id="chartStatus"></canvas>
+  </div>
+
+  <div class="chart-card">
+    <div class="chart-title">Complaints By Building</div>
+    <canvas id="chartBuilding"></canvas>
+  </div>
+
+  <div class="chart-card">
+    <div class="chart-title">Complaints Reported Per Month</div>
+    <canvas id="chartMonthly"></canvas>
+  </div>
+
+  <div class="chart-card" style="grid-column: span 2;">
+    <div class="chart-title">Repair Cost By Category</div>
+    <canvas id="chartCost"></canvas>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+fetch('/api/stats')
+  .then(res => res.json())
+  .then(data => {
+    // Populate Metrics
+    const m = data.metrics;
+    document.getElementById('m-total').innerText = m.total;
+    document.getElementById('m-pending').innerText = m.pending;
+    document.getElementById('m-progress').innerText = m.in_progress;
+    document.getElementById('m-resolved').innerText = m.resolved;
+    document.getElementById('m-cost').innerText = '₹' + m.total_cost.toLocaleString();
+    document.getElementById('m-avg-cost').innerText = '₹' + m.avg_cost.toLocaleString();
+    document.getElementById('m-cat').innerText = m.common_category;
+    document.getElementById('m-bldg').innerText = m.common_building;
+
+    // Common Chart Options
+    const darkTheme = {
+      color: '#94a3b8',
+      plugins: { legend: { labels: { color: '#94a3b8' } } },
+      scales: {
+        x: { ticks: { color: '#94a3b8' }, grid: { color: '#1e293b' } },
+        y: { ticks: { color: '#94a3b8' }, grid: { color: '#1e293b' } }
+      }
+    };
+
+    // 1. Category Chart (Horizontal Bar)
+    new Chart(document.getElementById('chartCategory'), {
+      type: 'bar',
+      data: {
+        labels: data.charts.by_category.labels,
+        datasets: [{ data: data.charts.by_category.data, backgroundColor: '#38bdf8' }]
+      },
+      options: { ...darkTheme, indexAxis: 'y', plugins: { legend: { display: false } } }
+    });
+
+    // 2. Status Distribution (Doughnut)
+    new Chart(document.getElementById('chartStatus'), {
+      type: 'doughnut',
+      data: {
+        labels: ['Pending', 'In Progress', 'Resolved'],
+        datasets: [{ data: data.charts.status, backgroundColor: ['#f97316', '#38bdf8', '#22c55e'] }]
+      },
+      options: { plugins: { legend: { labels: { color: '#94a3b8' } } } }
+    });
+
+    // 3. Building Chart (Vertical Bar)
+    new Chart(document.getElementById('chartBuilding'), {
+      type: 'bar',
+      data: {
+        labels: data.charts.by_building.labels,
+        datasets: [{ data: data.charts.by_building.data, backgroundColor: '#f97316' }]
+      },
+      options: { ...darkTheme, plugins: { legend: { display: false } } }
+    });
+
+    // 4. Monthly Line Chart
+    new Chart(document.getElementById('chartMonthly'), {
+      type: 'line',
+      data: {
+        labels: data.charts.monthly.labels,
+        datasets: [{ data: data.charts.monthly.data, borderColor: '#38bdf8', tension: 0.4, fill: false }]
+      },
+      options: { ...darkTheme, plugins: { legend: { display: false } } }
+    });
+
+    // 5. Cost by Category
+    new Chart(document.getElementById('chartCost'), {
+      type: 'bar',
+      data: {
+        labels: data.charts.cost_by_category.labels,
+        datasets: [{ data: data.charts.cost_by_category.data, backgroundColor: '#22c55e' }]
+      },
+      options: { ...darkTheme, plugins: { legend: { display: false } } }
+    });
+  });
+</script>
+{% endblock %}
