@@ -1,9 +1,19 @@
 from flask import Flask, render_template, request, jsonify, redirect, url_for, session
 from functools import wraps
 import sqlite3
+import os
 
 app = Flask(__name__)
 app.secret_key = 'super_secret_key_campusfix'
+
+# Helper function to get database path reliably on serverless platforms
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+DB_PATH = os.path.join(BASE_DIR, 'campus.db')
+
+def get_db_connection():
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    return conn
 
 # Auth Decorators
 def login_required(f):
@@ -35,16 +45,16 @@ def student_login():
         username = request.form['username']
         password = request.form['password']
         
-        conn = sqlite3.connect('campus.db')
+        conn = get_db_connection()
         cursor = conn.cursor()
         user = cursor.execute("SELECT * FROM users WHERE username = ? AND password = ? AND role = 'student'", 
                               (username, password)).fetchone()
         conn.close()
         
         if user:
-            session['user_id'] = user[0]
-            session['username'] = user[1]
-            session['role'] = user[3]
+            session['user_id'] = user['id'] if 'id' in user.keys() else user[0]
+            session['username'] = user['username'] if 'username' in user.keys() else user[1]
+            session['role'] = user['role'] if 'role' in user.keys() else user[3]
             return redirect(url_for('register'))
         else:
             return render_template('student_login.html', error="Invalid Student credentials.")
@@ -58,16 +68,16 @@ def admin_login():
         username = request.form['username']
         password = request.form['password']
         
-        conn = sqlite3.connect('campus.db')
+        conn = get_db_connection()
         cursor = conn.cursor()
         user = cursor.execute("SELECT * FROM users WHERE username = ? AND password = ? AND role = 'admin'", 
                               (username, password)).fetchone()
         conn.close()
         
         if user:
-            session['user_id'] = user[0]
-            session['username'] = user[1]
-            session['role'] = user[3]
+            session['user_id'] = user['id'] if 'id' in user.keys() else user[0]
+            session['username'] = user['username'] if 'username' in user.keys() else user[1]
+            session['role'] = user['role'] if 'role' in user.keys() else user[3]
             return redirect(url_for('reports'))
         else:
             return render_template('admin_login.html', error="Invalid Admin credentials.")
@@ -96,6 +106,9 @@ def tickets():
 @admin_required
 def reports():
     return render_template('reports.html')
+
+# Required for Vercel deployment
+app = app
 
 if __name__ == '__main__':
     app.run(debug=True)
